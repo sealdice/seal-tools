@@ -92,9 +92,9 @@ func main() {
 }
 
 // Windows 命令行程序执行完后会直接关掉，改成按任意键退出
+// 又：由 SealDice 调起时不需要手动退出
 func exitGracefully(code int) {
-	switch runtime.GOOS {
-	case "windows":
+	if runtime.GOOS == "windows" && !isIntegrated {
 		fmt.Println("按任意键退出程序…")
 		r := bufio.NewReader(os.Stdin)
 		_, _, _ = r.ReadRune()
