@@ -2,15 +2,16 @@ package main
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
-func execBackupRestore(wd string) error {
+func backupRestoreWithGui(wd string) error {
 	var backups []string
 	backupDir := path.Join(wd, "backups")
 
@@ -48,7 +49,7 @@ func execBackupRestore(wd string) error {
 	_, err := fmt.Scanln(&choice)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr,
-			"出现错误\n%s\n", err)
+			"出现错误，请确认输入的是数字\n%s\n", err)
 		exitGracefully(1)
 	}
 
@@ -56,7 +57,7 @@ func execBackupRestore(wd string) error {
 		_, _ = fmt.Fprintln(os.Stderr, "错误：无效序号")
 		exitGracefully(1)
 	} else {
-		err = RestoreBackup(backups[choice-1], wd)
+		err = TruncateRestore(backups[choice-1], wd, true)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr,
 				"出现错误\n%s\n", err)
@@ -70,52 +71,46 @@ func execBackupRestore(wd string) error {
 	return nil
 }
 
-func RestoreBackup(backup string, destin string) error {
+func TruncateRestore(zipPath string, destin string, confirmation bool) error {
 	// 打开压缩包
-	z, err := zip.OpenReader(backup)
+	z, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return fmt.Errorf("不能打开压缩文件：%w", err)
 	}
 	defer z.Close()
 
+	if confirmation {
+		var duplicate []string
+		for _, f := range z.File {
+			d := path.Join(destin, f.Name)
+			if _, err = os.Stat(d); err == nil || !errors.Is(err, os.ErrNotExist) {
+				duplicate = append(duplicate, d)
+			}
+		}
+
+		if len(duplicate) > 0 {
+			var conf string
+			fmt.Printf("以下文件将被覆盖：\n%s\n您确认吗？(y/N)\n", strings.Join(duplicate, "\n"))
+
+			_, err := fmt.Scanln(&conf)
+			if err != nil {
+				_, _ = fmt.Fprintf(os.Stderr,
+					"出现错误\n%s\n", err)
+				exitGracefully(1)
+			}
+
+			if conf != "y" {
+				fmt.Println("操作已取消")
+				exitGracefully(0)
+			}
+		}
+	}
+
 	for _, f := range z.File {
 		// 不要在 for 循环里直接使用 defer
 		// 出错提前 return 了没关系，但如果没出错，每一次循环的文件都会开着直到循环全部结束
 		// 所以，最好包装在函数里
-		if err = func(f *zip.File) error {
-			sf, err := f.Open()
-			if err != nil {
-				return fmt.Errorf("解压缩`%s`时出错：%w", f.Name, err)
-			}
-			defer sf.Close()
-
-			destPath := path.Join(destin, f.Name)
-			if f.FileInfo().IsDir() {
-				//TODO: 这里和 100、106 行的权限再好好斟酌一下
-				err = os.MkdirAll(destPath, 0750)
-				if err != nil {
-					return fmt.Errorf("创建目标目录`%s`时出错：%w", destPath, err)
-				}
-			} else {
-				err = os.MkdirAll(path.Dir(destPath), 0750)
-				if err != nil {
-					return fmt.Errorf("创建目标目录`%s`时出错：%w", destPath, err)
-				}
-			}
-
-			destFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				return fmt.Errorf("准备复制文件`%s`时出错：%w", path.Base(destPath), err)
-			}
-			defer destFile.Close()
-
-			_, err = io.Copy(destFile, sf)
-			if err != nil {
-				return fmt.Errorf("复制文件`%s`时出错：%w", destPath, err)
-			}
-
-			return nil
-		}(f); err != nil {
+		if err = Unzip(f, destin); err != nil {
 			return err
 		}
 	}
