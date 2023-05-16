@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 )
 
-func ExecBackupRestore(wd string) error {
+func execBackupRestore(wd string) error {
 	var backups []string
 	backupDir := path.Join(wd, "backups")
 
@@ -56,7 +56,7 @@ func ExecBackupRestore(wd string) error {
 		_, _ = fmt.Fprintln(os.Stderr, "错误：无效序号")
 		exitGracefully(1)
 	} else {
-		err = restoreBackup(backups[choice-1], wd)
+		err = RestoreBackup(backups[choice-1], wd)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr,
 				"出现错误\n%s\n", err)
@@ -70,7 +70,7 @@ func ExecBackupRestore(wd string) error {
 	return nil
 }
 
-func restoreBackup(backup string, destin string) error {
+func RestoreBackup(backup string, destin string) error {
 	// 打开压缩包
 	z, err := zip.OpenReader(backup)
 	if err != nil {
@@ -82,7 +82,7 @@ func restoreBackup(backup string, destin string) error {
 		// 不要在 for 循环里直接使用 defer
 		// 出错提前 return 了没关系，但如果没出错，每一次循环的文件都会开着直到循环全部结束
 		// 所以，最好包装在函数里
-		err = func(f *zip.File) error {
+		if err = func(f *zip.File) error {
 			sf, err := f.Open()
 			if err != nil {
 				return fmt.Errorf("解压缩`%s`时出错：%w", f.Name, err)
@@ -91,21 +91,21 @@ func restoreBackup(backup string, destin string) error {
 
 			destPath := path.Join(destin, f.Name)
 			if f.FileInfo().IsDir() {
+				//TODO: 这里和 100、106 行的权限再好好斟酌一下
 				err = os.MkdirAll(destPath, 0750)
 				if err != nil {
 					return fmt.Errorf("创建目标目录`%s`时出错：%w", destPath, err)
 				}
 			} else {
-				//TODO: 这里和 106 行的权限要不要定义 0644，还是和 f.Mode() 一样就行了
-				err = os.MkdirAll(path.Dir(destPath), 0666)
+				err = os.MkdirAll(path.Dir(destPath), 0750)
 				if err != nil {
 					return fmt.Errorf("创建目标目录`%s`时出错：%w", destPath, err)
 				}
 			}
 
-			destFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+			destFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
-				return fmt.Errorf("准备复制文件`%s`时出错：%w", destPath, err)
+				return fmt.Errorf("准备复制文件`%s`时出错：%w", path.Base(destPath), err)
 			}
 			defer destFile.Close()
 
@@ -115,9 +115,7 @@ func restoreBackup(backup string, destin string) error {
 			}
 
 			return nil
-		}(f)
-
-		if err != nil {
+		}(f); err != nil {
 			return err
 		}
 	}

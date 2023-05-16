@@ -41,7 +41,7 @@ func main() {
 			exitGracefully(1)
 		}
 
-		err = restoreBackup(backupTarget, wd)
+		err = RestoreBackup(backupTarget, wd)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "发生错误\n%s\n", err)
 			exitGracefully(1)
@@ -74,7 +74,7 @@ func main() {
 
 	switch choice {
 	case 1:
-		err = ExecBackupRestore(wd)
+		err = execBackupRestore(wd)
 		if err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err)
 			exitGracefully(1)
