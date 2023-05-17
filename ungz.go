@@ -135,17 +135,17 @@ func Ungz(r *tar.Reader, f *tar.Header, destin string) error {
 		if err != nil {
 			return fmt.Errorf("创建目标目录`%s`时出错：%w", destPath, err)
 		}
-	}
 
-	destFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(f.Mode))
-	if err != nil {
-		return fmt.Errorf("准备复制文件`%s`时出错：%w", filepath.Base(destPath), err)
-	}
-	defer destFile.Close()
+		destFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(f.Mode))
+		if err != nil {
+			return fmt.Errorf("准备复制文件`%s`时出错：%w", filepath.Base(destPath), err)
+		}
+		defer destFile.Close()
 
-	_, err = io.Copy(destFile, r)
-	if err != nil {
-		return fmt.Errorf("复制文件`%s`时出错：%w", destPath, err)
+		_, err = io.Copy(destFile, r)
+		if err != nil {
+			return fmt.Errorf("复制文件`%s`时出错：%w", destPath, err)
+		}
 	}
 
 	return nil
