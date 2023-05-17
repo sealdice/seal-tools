@@ -90,13 +90,13 @@ func trWithHandle(z *zip.ReadCloser, destin string, confirm bool, exclude ...str
 		var duplicate []string
 		var excluded []string
 		for _, f := range z.File {
+			// 根据 GitHub 安全检查，这边要防止一下 Zip Slip
+			if strings.Contains(f.Name, "..") {
+				continue
+			}
+			
 			d := path.Join(destin, f.Name)
 			if _, err := os.Stat(d); err == nil || !errors.Is(err, os.ErrNotExist) {
-				// 根据 GitHub 安全检查，这边要防止一下 Zip Slip
-				if strings.Contains(d, "..") {
-					continue
-				}
-
 				if len(excPaths) > 0 {
 					for _, ep := range excPaths {
 						if ep == d {
