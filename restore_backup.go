@@ -98,14 +98,11 @@ func trWithHandle(z *zip.ReadCloser, destin string, confirm bool) error {
 
 			_, err := fmt.Scanln(&conf)
 			if err != nil {
-				_, _ = fmt.Fprintf(os.Stderr,
-					"出现错误\n%s\n", err)
-				exitGracefully(1)
+				return err
 			}
 
 			if conf != "y" {
-				fmt.Println("操作已取消")
-				exitGracefully(0)
+				return fmt.Errorf("操作已取消")
 			}
 		}
 	}
