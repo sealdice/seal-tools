@@ -44,7 +44,7 @@ func backupRestoreWithGui(wd string) error {
 		var choice int
 		fmt.Println("发现以下备份：")
 		for i, b := range backups {
-			fmt.Printf("[%d] %s",
+			fmt.Printf("[%d] %s\n",
 				i+1, path.Base(b))
 		}
 		fmt.Printf("\n请输入对应数字进行选择（0–%d）", len(backups))
@@ -71,7 +71,7 @@ func backupRestoreWithGui(wd string) error {
 	return nil
 }
 
-func TruncateRestore(zipPath string, destin string, confirmation bool) error {
+func TruncateRestore(zipPath string, destin string, confirmation bool, exclude ...string) error {
 	// 打开压缩包
 	z, err := zip.OpenReader(zipPath)
 	if err != nil {
@@ -79,23 +79,47 @@ func TruncateRestore(zipPath string, destin string, confirmation bool) error {
 	}
 	defer z.Close()
 
-	return trWithHandle(z, destin, confirmation)
+	return trWithHandle(z, destin, confirmation, exclude...)
 }
 
-func trWithHandle(z *zip.ReadCloser, destin string, confirm bool) error {
+func trWithHandle(z *zip.ReadCloser, destin string, confirm bool, exclude ...string) error {
+	var excPaths []string
+	excPaths = append(excPaths, exclude...)
+
 	if confirm {
 		var duplicate []string
+		var excluded []string
 		for _, f := range z.File {
 			d := path.Join(destin, f.Name)
 			if _, err := os.Stat(d); err == nil || !errors.Is(err, os.ErrNotExist) {
-				duplicate = append(duplicate, d)
+				// 根据 GitHub 安全检查，这边要防止一下 Zip Slip
+				if strings.Contains(d, "..") {
+					continue
+				}
+
+				if len(excPaths) > 0 {
+					for _, ep := range excPaths {
+						if ep == d {
+							excluded = append(excluded, d)
+						} else {
+							duplicate = append(duplicate, d)
+						}
+					}
+				} else {
+					duplicate = append(duplicate, d)
+				}
 			}
 		}
 
 		if len(duplicate) > 0 {
 			var conf string
-			fmt.Printf("以下文件将被覆盖：\n%s\n您确认吗？(y/N)\n", strings.Join(duplicate, "\n"))
+			fmt.Printf("以下文件将被覆盖：\n%s\n", strings.Join(duplicate, "\n"))
 
+			if len(excluded) > 0 {
+				fmt.Printf("以下文件将被跳过：\n%s\n", strings.Join(excluded, "\n"))
+			}
+
+			fmt.Print("您确认吗？(y/N)")
 			_, err := fmt.Scanln(&conf)
 			if err != nil {
 				return err
@@ -108,11 +132,20 @@ func trWithHandle(z *zip.ReadCloser, destin string, confirm bool) error {
 	}
 
 	for _, f := range z.File {
-		// 不要在 for 循环里直接使用 defer
-		// 出错提前 return 了没关系，但如果没出错，每一次循环的文件都会开着直到循环全部结束
-		// 所以，最好包装在函数里
-		if err := Unzip(f, destin); err != nil {
-			return err
+		if strings.Contains(f.Name, "..") {
+			continue
+		}
+
+		for _, ep := range excPaths {
+			if ep != path.Join(destin, f.Name) {
+				// 不要在 for 循环里直接使用 defer
+				// 出错提前 return 了没关系，但如果没出错，每一次循环的文件都会开着直到循环全部结束
+				// 所以，最好包装在函数里
+				fmt.Println(f.Name)
+				if err := Unzip(f, destin); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
