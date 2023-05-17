@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -135,11 +135,11 @@ func exitGracefully(code int) {
 }
 
 func checkSealValid(wd string) ([]string, bool) {
-	var essentialFiles = []string{"sealdice-core", "go-cqhttp", "data", "frontend"}
+	var essentialFiles = []string{"sealdice-core", "go-cqhttp/", "data/", "frontend/"}
 	var missingFiles []string
 
 	for _, f := range essentialFiles {
-		fp := path.Join(wd, f)
+		fp := filepath.Join(wd, f)
 		if _, err := os.Stat(fp); err != nil && errors.Is(err, os.ErrNotExist) {
 			missingFiles = append(missingFiles, f)
 		}

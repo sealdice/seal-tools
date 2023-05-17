@@ -1,7 +1,8 @@
 package main
 
 import (
-	"archive/zip"
+	"archive/tar"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -10,27 +11,38 @@ import (
 	"strings"
 )
 
-func TruncateRestore(zipPath string, destin string, confirmation bool, exclude ...string) error {
-	// 打开压缩包
-	z, err := zip.OpenReader(zipPath)
+func TruncateRestoreGz(gzPath string, destin string, confirmation bool, exclude ...string) error {
+	f, err := os.Open(gzPath)
 	if err != nil {
-		return fmt.Errorf("不能打开压缩文件：%w", err)
+		return fmt.Errorf("打开压缩文件时出现错误\n%w", err)
 	}
-	defer z.Close()
+	defer f.Close()
 
-	return trWithHandle(z, destin, confirmation, exclude...)
+	g, err := gzip.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("打开压缩文件时出现错误\n%w", err)
+	}
+	defer g.Close()
+
+	return trWithHandleGz(f, g, destin, confirmation, exclude...)
 }
 
-func trWithHandle(z *zip.ReadCloser, destin string, confirm bool, exclude ...string) error {
+func trWithHandleGz(of *os.File, g *gzip.Reader, destin string, confirmation bool, exclude ...string) error {
 	var excPaths []string
 	excPaths = append(excPaths, exclude...)
 
-	if confirm {
+	tr := tar.NewReader(g)
+
+	if confirmation {
 		var duplicate []string
 		var excluded []string
-		for _, f := range z.File {
-			// 根据 GitHub 安全检查，这边要防止一下 Zip Slip
-			if strings.Contains(f.Name, "..") {
+		for {
+			f, err := tr.Next()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				return err
+			} else if strings.Contains(f.Name, "..") {
 				continue
 			}
 
@@ -68,62 +80,70 @@ func trWithHandle(z *zip.ReadCloser, destin string, confirm bool, exclude ...str
 				return fmt.Errorf("操作已取消")
 			}
 		}
+
+		_, err := of.Seek(0, io.SeekStart)
+		if err != nil {
+			return fmt.Errorf("重置迭代器时出现问题\n%w", err)
+		}
+		err = g.Reset(of)
+		if err != nil {
+			return fmt.Errorf("重置迭代器时出现问题\n%w", err)
+		}
+
+		tr = tar.NewReader(g)
 	}
 
-	for _, f := range z.File {
-		if strings.Contains(f.Name, "..") {
+	for {
+		f, err := tr.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		} else if strings.Contains(f.Name, "..") {
 			continue
 		}
 
 		if len(excPaths) > 0 {
 			for _, ep := range excPaths {
 				if ep != filepath.Join(destin, f.Name) {
-					// 不要在 for 循环里直接使用 defer
-					// 出错提前 return 了没关系，但如果没出错，每一次循环的文件都会开着直到循环全部结束
-					// 所以，最好包装在函数里
 					fmt.Println(f.Name)
-					if err := Unzip(f, destin); err != nil {
+					if err := Ungz(tr, f, destin); err != nil {
 						return err
 					}
 				}
 			}
 		} else {
-			if err := Unzip(f, destin); err != nil {
+			if err := Ungz(tr, f, destin); err != nil {
 				return err
 			}
 		}
 	}
+
 	return nil
 }
 
-func Unzip(f *zip.File, destin string) error {
-	sf, err := f.Open()
-	if err != nil {
-		return fmt.Errorf("解压缩`%s`时出错：%w", f.Name, err)
-	}
-	defer sf.Close()
-
+func Ungz(r *tar.Reader, f *tar.Header, destin string) error {
 	destPath := filepath.Join(destin, f.Name)
 	if f.FileInfo().IsDir() {
 		//TODO: 这里和 100、106 行的权限再好好斟酌一下
-		err = os.MkdirAll(destPath, 0755)
+		err := os.MkdirAll(destPath, 0755)
 		if err != nil {
 			return fmt.Errorf("创建目标目录`%s`时出错：%w", destPath, err)
 		}
 	} else {
-		err = os.MkdirAll(filepath.Dir(destPath), 0755)
+		err := os.MkdirAll(filepath.Dir(destPath), 0755)
 		if err != nil {
 			return fmt.Errorf("创建目标目录`%s`时出错：%w", destPath, err)
 		}
 	}
 
-	destFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+	destFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(f.Mode))
 	if err != nil {
 		return fmt.Errorf("准备复制文件`%s`时出错：%w", filepath.Base(destPath), err)
 	}
 	defer destFile.Close()
 
-	_, err = io.Copy(destFile, sf)
+	_, err = io.Copy(destFile, r)
 	if err != nil {
 		return fmt.Errorf("复制文件`%s`时出错：%w", destPath, err)
 	}
