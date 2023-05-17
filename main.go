@@ -14,19 +14,21 @@ import (
 
 const (
 	AppName string = "SealTools"
-	Version string = "0.0.1"
+	Version string = "0.1.0"
 )
 
 var (
 	isIntegrated     bool
 	backupTarget     string
 	workingDirectory string
+	installedUpdate  string
 )
 
 func main() {
 	flag.BoolVar(&isIntegrated, "i", false, "Is invoked from SealDice")
-	flag.StringVar(&backupTarget, "t", "", "The backup to restore, in full path")
+	flag.StringVar(&backupTarget, "t", "", "The backup to restore, in absolute path")
 	flag.StringVar(&workingDirectory, "w", "./", "The path where the program will run on")
+	flag.StringVar(&installedUpdate, "u", "", "The absolute path for SealDice update, if available")
 	flag.Parse()
 
 	if stat, err := os.Stat(workingDirectory); err != nil {
@@ -61,7 +63,26 @@ func main() {
 			"当前目录不完整，缺失以下文件或文件夹：\n%s\n%s\n",
 			strings.Join(f, " "),
 			"您是否已经将本程序放在了海豹核心的安装目录下（和 sealdice-core 等文件同个目录）？")
-		//TODO: 在这种情况下进入恢复模式
+		var conf string
+		fmt.Println("您是否需要进入恢复模式？(y/N）")
+		_, err := fmt.Scanln(&conf)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr,
+				"出现错误\n%s\n", err)
+			exitGracefully(1)
+		}
+
+		if conf != "y" {
+			fmt.Println("操作已取消")
+			exitGracefully(0)
+		}
+
+		err = recoveryWithGui(workingDirectory)
+		if err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			exitGracefully(1)
+		}
+
 		exitGracefully(1)
 	}
 
@@ -114,7 +135,7 @@ func exitGracefully(code int) {
 }
 
 func checkSealValid(wd string) ([]string, bool) {
-	var essentialFiles = []string{"sealdice-core", "go-cqhttp", "data", "backups", "frontend"}
+	var essentialFiles = []string{"sealdice-core", "go-cqhttp", "data", "frontend"}
 	var missingFiles []string
 
 	for _, f := range essentialFiles {
