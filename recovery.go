@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+ "crypto/md5"
+ "encoding/hex"
 )
 
 func recoveryWithGui() error {
@@ -132,38 +134,30 @@ func CheckUpdateAndInstall(targetExt string, updatePath string) error {
 	return nil
 }
 
-func checkUpdateValidZip(z *zip.ReadCloser) ([]string, error) {
-	var essentialFiles = []string{"sealdice-core.exe", "go-cqhttp/", "data/", "frontend/"}
-	var missingFiles []string
+// 使用 md5 对比文件在传输过程中是否发生修改
+func checkUpdateValidZip(z *zip.ReadCloser, hash string) error {
+    for _, f := range z.File {
+        if strings.Contains(f.Name, "..") {
+            continue
+        }
+        if filepath.Ext(f.Name) == ".exe" || filepath.Ext(f.Name) == ".dll" {
+            file, err := f.Open()
+            if err != nil {
+                return fmt.Errorf("打开文件时出现错误\n%w", err)
+            }
+            defer file.Close()
 
-	var markers = map[string]bool{}
-	for _, fn := range essentialFiles {
-		markers[fn] = false
-	}
-
-	for _, f := range z.File {
-		if strings.Contains(f.Name, "..") {
-			continue
-		}
-
-		for _, fn := range essentialFiles {
-			if strings.Contains(f.Name, fn) {
-				markers[fn] = true
-			}
-		}
-	}
-
-	for fn, exist := range markers {
-		if !exist {
-			missingFiles = append(missingFiles, fn)
-		}
-	}
-
-	if len(missingFiles) > 0 {
-		return missingFiles, fmt.Errorf("缺少必要文件")
-	}
-
-	return nil, nil
+            h := md5.New()
+            if _, err := io.Copy(h, file); err != nil {
+                return err
+            }
+            md5Hash := hex.EncodeToString(h.Sum(nil))
+            if md5Hash != hash {
+                return fmt.Errorf("文件 %s 校验失败", f.Name)
+            }
+        }
+    }
+    return nil
 }
 
 func checkUpdateValidTarGz(g *gzip.Reader) ([]string, error) {
