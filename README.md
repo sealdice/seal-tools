@@ -10,3 +10,6 @@
 4. 命令行参数 `-u <directory>` 用来指定另一个海豹安装包的绝对路径，用于覆盖安装。目前 `-t` 和 `-u` 只能出现一个，前者优先于后者。
 5. 所有错误都输出到 `os.Stderr`，可以在主程序中用一些方法（`cmd.StderrPipe` 之类）捕获。 
 6. 在 macOS 上开发，未验证对 Windows 的兼容性（尤其是复制/创建文件那里）。**`recovery.go` 中的代码还未被全面测试过。**
+
+## 特别感谢
+[熊砾](https://github.com/Lightinglight)：发现了在 Windows 环境下无法准确识别文件的问题。

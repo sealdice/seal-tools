@@ -14,7 +14,7 @@ import (
 
 const (
 	AppName string = "SealTools"
-	Version string = "0.1.0"
+	Version string = "0.1.0-dev"
 )
 
 var (
@@ -146,7 +146,13 @@ func exitGracefully(code int) {
 }
 
 func checkSealValid() ([]string, bool) {
-	var essentialFiles = []string{"sealdice-core", "go-cqhttp/", "data/", "frontend/"}
+	var essentialFiles = []string{"go-cqhttp/", "data/", "frontend/"}
+	if runtime.GOOS == "windows" {
+		essentialFiles = append(essentialFiles, "sealdice-core.exe")
+	} else {
+		essentialFiles = append(essentialFiles, "sealdice-core")
+	}
+
 	var missingFiles []string
 
 	for _, f := range essentialFiles {

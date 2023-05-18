@@ -45,7 +45,7 @@ func recoveryWithGui() error {
 	clearScreen()
 
 	var choice int
-	fmt.Println("发现以下备份：")
+	fmt.Println("发现以下可能的安装文件：")
 	for i, b := range archivedFiles {
 		fmt.Printf("[%d] %s\n", i+1, filepath.Base(b))
 	}
@@ -133,8 +133,13 @@ func CheckUpdateAndInstall(targetExt string, updatePath string) error {
 }
 
 func checkUpdateValidZip(z *zip.ReadCloser) ([]string, error) {
-	var essentialFiles = []string{"sealdice-core", "go-cqhttp/", "data/", "frontend/"}
+	var essentialFiles = []string{"sealdice-core.exe", "go-cqhttp/", "data/", "frontend/"}
 	var missingFiles []string
+
+	var markers = map[string]bool{}
+	for _, fn := range essentialFiles {
+		markers[fn] = false
+	}
 
 	for _, f := range z.File {
 		if strings.Contains(f.Name, "..") {
@@ -142,14 +147,15 @@ func checkUpdateValidZip(z *zip.ReadCloser) ([]string, error) {
 		}
 
 		for _, fn := range essentialFiles {
-			found := false
-			if filepath.Join(filepath.Base(f.Name), fn) == f.Name {
-				found = true
+			if strings.Contains(f.Name, fn) {
+				markers[fn] = true
 			}
+		}
+	}
 
-			if !found {
-				missingFiles = append(missingFiles, fn)
-			}
+	for fn, exist := range markers {
+		if !exist {
+			missingFiles = append(missingFiles, fn)
 		}
 	}
 
