@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 )
 
-func backupRestoreWithGui(wd string) error {
+func backupRestoreWithGui() error {
 	var backups []string
 	var backupDir string
 
 	if backupTarget == "" {
-		backupDir = path.Join(wd, "backups")
+		backupDir = path.Join(workingDirectory, "backups")
 		if _, err := os.Stat(backupDir); err != nil && errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("当前工作目录下没有 backups 文件夹")
 		}
@@ -63,7 +63,7 @@ func backupRestoreWithGui(wd string) error {
 		backupTarget = backups[choice-1]
 	}
 
-	err := TruncateRestore(backupTarget, wd, true)
+	err := TruncateRestore(backupTarget, workingDirectory, true)
 	if err != nil {
 		return fmt.Errorf("出现错误\n%w", err)
 	} else {

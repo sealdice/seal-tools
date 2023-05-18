@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func recoveryWithGui(wd string) error {
+func recoveryWithGui() error {
 	clearScreen()
 
 	var archivedFiles []string
@@ -24,7 +24,7 @@ func recoveryWithGui(wd string) error {
 		targetExt = ".gz"
 	}
 
-	if err := filepath.Walk(wd, func(p string, i fs.FileInfo, err error) error {
+	if err := filepath.Walk(workingDirectory, func(p string, i fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -64,7 +64,18 @@ func recoveryWithGui(wd string) error {
 		return fmt.Errorf("错误：无效序号")
 	}
 
-	updatePath := filepath.Join(wd, archivedFiles[choice-1])
+	updatePath := filepath.Join(workingDirectory, archivedFiles[choice-1])
+	err = CheckUpdateAndInstall(targetExt, updatePath)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("安装成功！请先实验骰子能否启动，然后（如果可能的话）恢复备份。")
+
+	return nil
+}
+
+func CheckUpdateAndInstall(targetExt string, updatePath string) error {
 	if targetExt == ".zip" {
 		z, err := zip.OpenReader(updatePath)
 		if err != nil {
@@ -118,9 +129,6 @@ func recoveryWithGui(wd string) error {
 			return fmt.Errorf("解压缩时发生错误\n%w", err)
 		}
 	}
-
-	fmt.Println("安装成功！请先实验骰子能否启动，然后（如果可能的话）恢复备份。")
-
 	return nil
 }
 

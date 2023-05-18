@@ -41,23 +41,34 @@ func main() {
 	}
 
 	if isIntegrated {
-		if backupTarget == "" {
-			_, _ = fmt.Fprintln(os.Stderr, "错误：没有提供要恢复的备份")
-			exitGracefully(1)
+		if backupTarget != "" {
+			err := TruncateRestore(backupTarget, workingDirectory, false)
+			if err != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "发生错误\n%s\n", err)
+				exitGracefully(1)
+			}
+			exitGracefully(0)
 		}
 
-		err := TruncateRestore(backupTarget, workingDirectory, false)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "发生错误\n%s\n", err)
-			exitGracefully(1)
+		if installedUpdate != "" {
+			var targetExt string
+			if runtime.GOOS == "windows" {
+				targetExt = ".zip"
+			} else {
+				targetExt = ".gz"
+			}
+			err := CheckUpdateAndInstall(targetExt, installedUpdate)
+			if err != nil {
+				_, _ = fmt.Fprintln(os.Stderr, err)
+				exitGracefully(1)
+			}
 		}
-		exitGracefully(0)
 	}
 
 	fmt.Printf("%s%s (%s) by 檀轶步棋%s\n",
 		strings.Repeat("=", 8), AppName, Version, strings.Repeat("=", 8))
 
-	f, ok := checkSealValid(workingDirectory)
+	f, ok := checkSealValid()
 	if !ok {
 		_, _ = fmt.Fprintf(os.Stderr,
 			"当前目录不完整，缺失以下文件或文件夹：\n%s\n%s\n",
@@ -77,7 +88,7 @@ func main() {
 			exitGracefully(0)
 		}
 
-		err = recoveryWithGui(workingDirectory)
+		err = recoveryWithGui()
 		if err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err)
 			exitGracefully(1)
@@ -99,13 +110,13 @@ func main() {
 
 	switch choice {
 	case 1:
-		err = backupRestoreWithGui(workingDirectory)
+		err = backupRestoreWithGui()
 		if err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err)
 			exitGracefully(1)
 		}
 	case 2:
-		err = recoveryWithGui(workingDirectory)
+		err = recoveryWithGui()
 		if err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err)
 			exitGracefully(1)
@@ -134,12 +145,12 @@ func exitGracefully(code int) {
 	os.Exit(code)
 }
 
-func checkSealValid(wd string) ([]string, bool) {
+func checkSealValid() ([]string, bool) {
 	var essentialFiles = []string{"sealdice-core", "go-cqhttp/", "data/", "frontend/"}
 	var missingFiles []string
 
 	for _, f := range essentialFiles {
-		fp := filepath.Join(wd, f)
+		fp := filepath.Join(workingDirectory, f)
 		if _, err := os.Stat(fp); err != nil && errors.Is(err, os.ErrNotExist) {
 			missingFiles = append(missingFiles, f)
 		}
