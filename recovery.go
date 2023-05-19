@@ -263,7 +263,12 @@ func GetUpdateAndDownload() (string, error) {
 		arch = runtime.GOARCH
 	}
 
-	fn := fmt.Sprintf("sealdice-core_%s_%s_%s.%s",
+	upe := UpdateExt
+	if upe == ".gz" {
+		upe = ".tar.gz"
+	}
+
+	fn := fmt.Sprintf("sealdice-core_%s_%s_%s%s",
 		ver.VersionLatest, runtime.GOOS, arch, UpdateExt)
 
 	var fileUrl string

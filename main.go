@@ -36,9 +36,9 @@ func main() {
 	flag.Parse()
 
 	if runtime.GOOS == "windows" {
-		UpdateExt = "zip"
+		UpdateExt = ".zip"
 	} else {
-		UpdateExt = "tar.gz"
+		UpdateExt = ".gz"
 	}
 
 	if stat, err := os.Stat(workingDirectory); err != nil {
