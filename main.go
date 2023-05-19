@@ -14,22 +14,32 @@ import (
 
 const (
 	AppName string = "SealTools"
-	Version string = "0.1.0-dev"
+	Version string = "0.1.1-dev"
 )
 
 var (
-	isIntegrated     bool
 	backupTarget     string
 	workingDirectory string
-	installedUpdate  string
+	targetUpdate     string
+	downloadUpdate   bool
+	installUpdate    bool
+	isIntegrated     bool
+	UpdateExt        string
 )
 
 func main() {
-	flag.BoolVar(&isIntegrated, "i", false, "Is invoked from SealDice")
 	flag.StringVar(&backupTarget, "t", "", "The backup to restore, in absolute path")
 	flag.StringVar(&workingDirectory, "w", "./", "The path where the program will run on")
-	flag.StringVar(&installedUpdate, "u", "", "The absolute path for SealDice update, if available")
+	flag.StringVar(&targetUpdate, "u", "", "The absolute path for SealDice update, if available")
+	flag.BoolVar(&installUpdate, "i", false, "Install update after downloading it. Only works with -d")
+	flag.BoolVar(&downloadUpdate, "d", false, "Download latest update from web")
 	flag.Parse()
+
+	if runtime.GOOS == "windows" {
+		UpdateExt = "zip"
+	} else {
+		UpdateExt = "tar.gz"
+	}
 
 	if stat, err := os.Stat(workingDirectory); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr,
@@ -40,29 +50,48 @@ func main() {
 		exitGracefully(1)
 	}
 
-	if isIntegrated {
-		if backupTarget != "" {
-			err := TruncateRestore(backupTarget, workingDirectory, false)
-			if err != nil {
-				_, _ = fmt.Fprintf(os.Stderr, "发生错误\n%s\n", err)
-				exitGracefully(1)
-			}
-			exitGracefully(0)
+	if backupTarget != "" {
+		isIntegrated = true
+
+		err := TruncateRestore(backupTarget, workingDirectory, false)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "发生错误\n%s\n", err)
+			exitGracefully(1)
+		}
+		exitGracefully(0)
+	} else if downloadUpdate {
+		isIntegrated = true
+		p, err := GetUpdateAndDownload()
+		if err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			exitGracefully(1)
 		}
 
-		if installedUpdate != "" {
-			var targetExt string
-			if runtime.GOOS == "windows" {
-				targetExt = ".zip"
-			} else {
-				targetExt = ".gz"
-			}
-			err := CheckUpdateAndInstall(targetExt, installedUpdate)
+		if installUpdate {
+			err = CheckUpdateAndInstall(UpdateExt, p)
 			if err != nil {
 				_, _ = fmt.Fprintln(os.Stderr, err)
 				exitGracefully(1)
 			}
 		}
+	} else if targetUpdate != "" {
+		isIntegrated = true
+
+		var targetExt string
+		if runtime.GOOS == "windows" {
+			targetExt = ".zip"
+		} else {
+			targetExt = ".gz"
+		}
+		err := CheckUpdateAndInstall(targetExt, targetUpdate)
+		if err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			exitGracefully(1)
+		}
+	}
+
+	if isIntegrated {
+		exitGracefully(0)
 	}
 
 	fmt.Printf("%s%s (%s) by 檀轶步棋%s\n",

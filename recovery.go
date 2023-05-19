@@ -4,32 +4,37 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 )
 
+type VersionInfo struct {
+	VersionLatest           string `json:"versionLatest"`
+	VersionLatestDetail     string `json:"versionLatestDetail"`
+	VersionLatestCode       int64  `json:"versionLatestCode"`
+	VersionLatestNote       string `json:"versionLatestNote"`
+	MinUpdateSupportVersion int64  `json:"minUpdateSupportVersion"`
+	NewVersionUrlPrefix     string `json:"newVersionUrlPrefix"`
+}
+
 func recoveryWithGui() error {
 	clearScreen()
 
 	var archivedFiles []string
-	var targetExt string
-	if runtime.GOOS == "windows" {
-		targetExt = ".zip"
-	} else {
-		targetExt = ".gz"
-	}
 
 	if err := filepath.Walk(workingDirectory, func(p string, i fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if filepath.Ext(p) == targetExt {
+		if filepath.Ext(p) == UpdateExt {
 			archivedFiles = append(archivedFiles, p)
 		}
 
@@ -65,7 +70,7 @@ func recoveryWithGui() error {
 	}
 
 	updatePath := filepath.Join(workingDirectory, archivedFiles[choice-1])
-	err = CheckUpdateAndInstall(targetExt, updatePath)
+	err = CheckUpdateAndInstall(UpdateExt, updatePath)
 	if err != nil {
 		return err
 	}
@@ -204,4 +209,75 @@ func checkUpdateValidTarGz(g *gzip.Reader) ([]string, error) {
 	}
 
 	return nil, nil
+}
+
+func GetUpdateAndDownload() (string, error) {
+	getVersionInfo := func() (*VersionInfo, error) {
+		resp, err := http.Get("https://dice.weizaima.com/dice/api/version?versionCode=0")
+		if err != nil {
+			return nil, fmt.Errorf("与网站连接时出现错误\n%w", err)
+		}
+		defer resp.Body.Close()
+
+		var ver VersionInfo
+		err = json.NewDecoder(resp.Body).Decode(&ver)
+		if err != nil {
+			return nil, fmt.Errorf("解析响应时出现错误\n%w", err)
+		}
+
+		return &ver, nil
+	}
+
+	getFile := func(destin string, url string) error {
+		resp, err := http.Get(url)
+		if err != nil {
+			return fmt.Errorf("与网站连接时出现错误\n%w", err)
+		}
+		defer resp.Body.Close()
+
+		op, err := os.Create(destin)
+		if err != nil {
+			return fmt.Errorf("创建目标文件时发生错误\n%w", err)
+		}
+		defer op.Close()
+
+		_, err = io.Copy(op, resp.Body)
+		if err != nil {
+			return fmt.Errorf("复制文件时发生错误\n%w", err)
+		}
+
+		return nil
+	}
+
+	ver, err := getVersionInfo()
+	if err != nil {
+		return "", err
+	}
+
+	var arch string
+	if runtime.GOARCH == "386" {
+		arch = "i386"
+	} else if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		arch = "amd64"
+	} else {
+		arch = runtime.GOARCH
+	}
+
+	fn := fmt.Sprintf("sealdice-core_%s_%s_%s.%s",
+		ver.VersionLatest, runtime.GOOS, arch, UpdateExt)
+
+	var fileUrl string
+	if ver.NewVersionUrlPrefix != "" {
+		fileUrl = ver.NewVersionUrlPrefix + "/" + fn
+	} else {
+		fileUrl = "https://sealdice.coding.net/p/sealdice/d/sealdice-binaries/git/raw/master/" + fn
+	}
+
+	final := filepath.Join(workingDirectory, fn)
+	err = getFile(final, fileUrl)
+	if err != nil {
+		return "", err
+	}
+
+	return final, nil
 }
