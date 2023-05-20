@@ -1,10 +1,10 @@
 use crate::cli::{Cli, Commands};
 use crate::command_patch::{patch_seal, patch_with_gui};
+use crate::command_restore::{restore_backup, restore_with_gui};
 use clap::Parser;
 use clearscreen::clear;
 use std::io::Read;
 use std::{io, path, process};
-use crate::command_restore::{restore_backup, restore_with_gui};
 
 mod cli;
 mod command_patch;
@@ -90,7 +90,7 @@ fn main() {
             } else {
                 exit_with("成功恢复备份！", 0)
             }
-        },
+        }
         Commands::Patch {
             package,
             download,

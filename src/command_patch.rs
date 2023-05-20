@@ -1,4 +1,4 @@
-use crate::unarchive::{check_archive_replacement, crau, list_files, unarchive};
+use crate::unarchive::{crau, list_files};
 use crate::{exit_with, PACKAGE_EXT};
 use clearscreen::clear;
 use serde::Deserialize;

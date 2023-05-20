@@ -1,7 +1,7 @@
+use crate::exit_with;
 use clearscreen::clear;
 use std::error::Error;
 use std::{fs, io, path};
-use crate::exit_with;
 
 pub(crate) fn crau(dest: &str, wd: &str) -> Result<(), String> {
     match check_archive_replacement(dest, wd) {
@@ -41,15 +41,14 @@ pub(crate) fn list_files(dir: &str, ext: &str) -> Result<Vec<String>, Box<dyn Er
             continue;
         }
 
-        let file_name = entry_path.file_name()
+        let file_name = entry_path
+            .file_name()
             .ok_or("无法读取文件名称")?
             .to_str()
             .ok_or("非法文件名称")?;
         let file_ext = match path::Path::new(file_name).extension() {
-            Some(ext) => {
-                ext.to_str().ok_or("非法文件扩展")?
-            }
-            None => continue
+            Some(ext) => ext.to_str().ok_or("非法文件扩展")?,
+            None => continue,
         };
         if file_ext == ext {
             files.push(String::from(file_name));

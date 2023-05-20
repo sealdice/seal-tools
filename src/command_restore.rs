@@ -1,6 +1,6 @@
-use std::{io, path};
 use crate::exit_with;
-use crate::unarchive::{check_archive_replacement, crau, list_files, unarchive};
+use crate::unarchive::{crau, list_files};
+use std::{io, path};
 
 pub(crate) fn restore_with_gui(wd: &str) -> Result<(), String> {
     println!("您希望如何恢复备份？");
@@ -46,16 +46,14 @@ pub(crate) fn restore_with_gui(wd: &str) -> Result<(), String> {
                         return Err(String::from("无效选择"));
                     }
 
-                    let dir = path::Path::new(backup_dir)
-                        .join(files[choice - 1].clone());
-                    let dir_str = dir.to_str()
-                        .ok_or("无法导航至备份文件")?;
+                    let dir = path::Path::new(backup_dir).join(files[choice - 1].clone());
+                    let dir_str = dir.to_str().ok_or("无法导航至备份文件")?;
 
                     restore_backup(wd, Some(String::from(dir_str)))
                 }
                 Err(e) => Err(format!("获取文件列表时发生错误：{e}")),
             };
-        },
+        }
         2 => {
             println!("请输入文件绝对路径：");
             let mut input = String::new();
@@ -63,7 +61,7 @@ pub(crate) fn restore_with_gui(wd: &str) -> Result<(), String> {
                 return Err(format!("意外错误：{e}"));
             }
             return restore_backup(wd, Some(String::from(input.trim())));
-        },
+        }
         _ => return Err(String::from("无效选择")),
     }
     Ok(())
