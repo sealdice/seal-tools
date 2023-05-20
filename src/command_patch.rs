@@ -1,8 +1,11 @@
 use crate::unarchive::{crau, list_files};
 use crate::{exit_with, PACKAGE_EXT};
 use clearscreen::clear;
+use curl::easy;
 use serde::Deserialize;
 use std::error::Error;
+use std::io::Write;
+use std::sync::{Arc, Mutex};
 use std::{env, fs, io, path};
 
 #[derive(Deserialize)]
@@ -139,11 +142,7 @@ pub(crate) fn patch_seal(
         println!("从{}获取`{}`...", target_url, file_name);
         target_url = format!("{}/{}", target_url, file_name);
 
-        let try_dest = path::Path::new(wd).join(file_name);
-        dest = match try_dest.to_str() {
-            Some(d) => d.to_string(),
-            None => return Err(String::from("准备下载文件时发生意外错误")),
-        };
+        let dest = path::Path::new(wd).join(file_name);
 
         if let Err(e) = download(&dest, &target_url) {
             return Err(format!("下载更新时发生错误：{e}"));
@@ -155,15 +154,42 @@ pub(crate) fn patch_seal(
 
         fn get_version() -> Result<VersionInfo, Box<dyn Error>> {
             let url = "https://dice.weizaima.com/dice/api/version?versionCode=0";
-            let resp = reqwest::blocking::get(url)?;
-            let ver_info: VersionInfo = resp.json()?;
+            let mut ez = easy::Easy::new();
+            ez.url(url)?;
+            let response = Arc::new(Mutex::new(Vec::new()));
+            let response_clone = response.clone();
+            ez.write_function(move |data| {
+                response_clone.lock().unwrap().extend_from_slice(data);
+                Ok(data.len())
+            })?;
+            ez.perform()?;
+
+            if ez.response_code()? != 200 {
+                panic!("Request failed");
+            }
+
+            let response = response.lock().unwrap();
+            let json_string = String::from_utf8_lossy(&response);
+            let ver_info: VersionInfo = serde_json::from_str(&json_string)?;
+
             Ok(ver_info)
         }
 
-        fn download(dest: &str, url: &str) -> Result<(), Box<dyn Error>> {
-            let mut resp = reqwest::blocking::get(url)?;
+        fn download(dest: &path::Path, url: &str) -> Result<(), Box<dyn Error>> {
+            let mut ez = easy::Easy::new();
+            ez.url(url)?;
             let mut file = fs::File::create(dest)?;
-            io::copy(&mut resp, &mut file)?;
+            ez.write_function(move |data| {
+                file.write_all(data).unwrap();
+                Ok(data.len())
+            })?;
+            ez.perform()?;
+
+            if ez.response_code()? != 200 {
+                panic!("Request failed");
+            }
+
+            ez.reset();
             Ok(())
         }
     }
