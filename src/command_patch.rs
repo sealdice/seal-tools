@@ -7,6 +7,7 @@ use std::error::Error;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::{env, fs, io, path};
+use curl::easy::{Handler, WriteError};
 
 #[derive(Deserialize)]
 struct VersionInfo {
@@ -142,9 +143,11 @@ pub(crate) fn patch_seal(
         println!("从{}获取`{}`...", target_url, file_name);
         target_url = format!("{}/{}", target_url, file_name);
 
-        let dest = path::Path::new(wd).join(file_name);
+        let dest_path = path::Path::new(wd).join(file_name);
 
-        if let Err(e) = download(&dest, &target_url) {
+        dest = String::from(dest_path.to_str().ok_or("非法路径")?);
+
+        if let Err(e) = download(&dest_path, &target_url) {
             return Err(format!("下载更新时发生错误：{e}"));
         }
 
@@ -152,24 +155,28 @@ pub(crate) fn patch_seal(
             exit_with("因为 `--noinstall`，现在退出……", 0);
         }
 
+        struct Collector(Vec<u8>);
+
+        impl Handler for Collector {
+            fn write(&mut self, data: &[u8]) -> Result<usize, WriteError> {
+                self.0.extend_from_slice(data);
+                Ok(data.len())
+            }
+        }
+
         fn get_version() -> Result<VersionInfo, Box<dyn Error>> {
             let url = "https://dice.weizaima.com/dice/api/version?versionCode=0";
-            let mut ez = easy::Easy::new();
+            let mut ez = easy::Easy2::new(Collector(Vec::new()));
+            ez.get(true)?;
             ez.url(url)?;
-            let response = Arc::new(Mutex::new(Vec::new()));
-            let response_clone = response.clone();
-            ez.write_function(move |data| {
-                response_clone.lock().unwrap().extend_from_slice(data);
-                Ok(data.len())
-            })?;
             ez.perform()?;
 
             if ez.response_code()? != 200 {
-                panic!("Request failed");
+                Err(String::from("网络请求失败"))?;
             }
 
-            let response = response.lock().unwrap();
-            let json_string = String::from_utf8_lossy(&response);
+            let response = ez.get_ref();
+            let json_string = String::from_utf8_lossy(&response.0);
             let ver_info: VersionInfo = serde_json::from_str(&json_string)?;
 
             Ok(ver_info)
@@ -180,16 +187,14 @@ pub(crate) fn patch_seal(
             ez.url(url)?;
             let mut file = fs::File::create(dest)?;
             ez.write_function(move |data| {
-                file.write_all(data).unwrap();
+                file.write_all(data);
                 Ok(data.len())
             })?;
             ez.perform()?;
 
             if ez.response_code()? != 200 {
-                panic!("Request failed");
+                Err(String::from("网络请求失败"))?;
             }
-
-            ez.reset();
             Ok(())
         }
     }
