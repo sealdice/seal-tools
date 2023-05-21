@@ -1,5 +1,5 @@
 # seal-tools
- 一些提供给 SealDice 的小工具。与 main 分支不同，该分支用 Rust 语言重构。
+ 一些提供给 SealDice 的小工具。
 
 ## 跨平台编译（以 aarch64-unknown-linux-gnu 为例）
 1. 您需要安装其他系统的 Rust 标准库：
@@ -30,7 +30,45 @@ curl = { version = "0.4.44", default-features = false, features = ["rustls"] }
 ```
 
 ## 开发指南
-文档会在后续版本完善。您现在可以在 `src/cli.rs` 查看所有命令和参数的定义，或对编译后的程序运行 `./seal-tools --help`。
+文档会在后续版本完善。您现在可以在 `src/cli.rs` 查看所有命令和参数的定义。以下是内置的帮助：
+
+### `./seal-tools --help`
+```text
+Usage: seal-tools [OPTIONS] [COMMAND]
+
+Commands:
+  restore  Restore backup
+  patch    Patch up SealDice
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -w <WORKING_DIRECTORY>      The program's working directory [default: ./]
+  -n, --nogui                 Run without GUI
+  -h, --help                  Print help
+  -V, --version               Print version
+```
+
+### `./seal-tools restore --help`
+```text
+Usage: seal-tools restore [OPTIONS]
+
+Options:
+  -b, --backup <BACKUP_PATH>      Specify a backup archive. Mandatory if run without gui
+  -e, --except <PATH1, PATH2>...  Specify paths to be skipped
+  -h, --help                      Print help
+```
+
+### `./seal-tools patch --help`
+```text
+Usage: seal-tools patch [OPTIONS]
+
+Options:
+  -p, --package <UPDATE_PATH>      Specify an update package. Mandatory if run without gui nor `-d`
+  -d, --download                   Download the latest update package
+  -n, --noinstall                  Cancel auto-installation after download. Only works when `-d` exists
+  -e, --except <PATHS1, PATH2>...  Specify paths to be skipped
+  -h, --help                       Print help
+```
 
 ## 特别感谢
 [熊砾](https://github.com/Lightinglight)：进行了大量的测试
