@@ -20,7 +20,30 @@ fn main() {
     let mut cli = Cli::parse();
 
     if cli.nogui {
-        todo!()
+        match cli.command {
+            None => {
+                exit_with("", 0);
+            }
+            Some(cmd) => match cmd {
+                Commands::Restore { backup, except } => {
+                    if let Err(e) = restore_backup(&cli.dir, backup, except, false) {
+                        exit_with(e, 1);
+                    }
+                }
+                Commands::Patch {
+                    package,
+                    download,
+                    noinstall,
+                    except,
+                } => {
+                    if let Err(e) = patch_seal(&cli.dir, package, download, noinstall, except, false) {
+                        exit_with(e, 1);
+                    }
+                }
+            },
+        }
+
+        return;
     }
 
     if cli.command.is_none() {
@@ -90,7 +113,7 @@ fn main() {
             if let Err(e) = if backup.is_none() {
                 restore_with_gui(&cli.dir)
             } else {
-                restore_backup(&cli.dir, backup, except)
+                restore_backup(&cli.dir, backup, except, true)
             } {
                 exit_with(e, 1);
             } else {
@@ -106,7 +129,7 @@ fn main() {
             if let Err(e) = if package.is_none() && !download && !noinstall {
                 patch_with_gui(&cli.dir)
             } else {
-                patch_seal(&cli.dir, package, download, noinstall, except)
+                patch_seal(&cli.dir, package, download, noinstall, except, true)
             } {
                 exit_with(e, 1);
             } else {

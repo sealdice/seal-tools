@@ -1,32 +1,32 @@
 use crate::exit_with;
-use clearscreen::clear;
 use std::error::Error;
 use std::{fs, io, path};
 
-pub(crate) fn crau(dest: &str, wd: &str, except: Option<Vec<String>>) -> Result<(), String> {
-    match check_archive_replacement(dest, wd, &except) {
-        Ok(dup) => {
-            if !dup.is_empty() {
-                println!(
-                    "解压后，以下文件将被覆盖：\n{}\n以上文件将被覆盖，您确认吗？(y/N)",
-                    dup.join("\n")
-                );
-                let mut choice = String::new();
-                if let Err(e) = io::stdin().read_line(&mut choice) {
-                    exit_with(format!("意外错误：{e}"), 1);
-                }
-                if choice.trim() != "y" {
-                    exit_with("操作已取消", 0);
+pub(crate) fn crau(dest: &str, wd: &str, except: Option<Vec<String>>, confirm: bool) -> Result<(), String> {
+    if confirm {
+        match check_archive_replacement(dest, wd, &except) {
+            Ok(dup) => {
+                if !dup.is_empty() {
+                    println!(
+                        "解压后，以下文件将被覆盖：\n{}\n以上文件将被覆盖，您确认吗？(y/N)",
+                        dup.join("\n")
+                    );
+                    let mut choice = String::new();
+                    if let Err(e) = io::stdin().read_line(&mut choice) {
+                        exit_with(format!("意外错误：{e}"), 1);
+                    }
+                    if choice.trim() != "y" {
+                        exit_with("操作已取消", 0);
+                    }
                 }
             }
-
-            if let Err(e) = unarchive(dest, wd, &except) {
-                exit_with(format!("解压文件时发生错误：{e}"), 1);
-            }
+            Err(e) => return Err(format!("试图检查覆盖项目时发生错误：{e}")),
         }
-        Err(e) => return Err(format!("试图检查覆盖项目时发生错误：{e}")),
     }
 
+    if let Err(e) = unarchive(dest, wd, &except) {
+        exit_with(format!("解压文件时发生错误：{e}"), 1);
+    }
     Ok(())
 }
 

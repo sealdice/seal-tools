@@ -49,7 +49,7 @@ pub(crate) fn restore_with_gui(wd: &str) -> Result<(), String> {
                     let dir = path::Path::new(backup_dir).join(files[choice - 1].clone());
                     let dir_str = dir.to_str().ok_or("无法导航至备份文件")?;
 
-                    restore_backup(wd, Some(String::from(dir_str)), None)
+                    restore_backup(wd, Some(String::from(dir_str)), None, true)
                 }
                 Err(e) => Err(format!("获取文件列表时发生错误：{e}")),
             };
@@ -60,7 +60,7 @@ pub(crate) fn restore_with_gui(wd: &str) -> Result<(), String> {
             if let Err(e) = io::stdin().read_line(&mut input) {
                 return Err(format!("意外错误：{e}"));
             }
-            return restore_backup(wd, Some(String::from(input.trim())), None);
+            return restore_backup(wd, Some(String::from(input.trim())), None, true);
         }
         _ => return Err(String::from("无效选择")),
     }
@@ -71,7 +71,8 @@ pub(crate) fn restore_backup(
     wd: &str,
     backup: Option<String>,
     except: Option<Vec<String>>,
+    confirm: bool
 ) -> Result<(), String> {
     let dest = backup.unwrap();
-    crau(&dest, wd, except)
+    crau(&dest, wd, except, confirm)
 }
