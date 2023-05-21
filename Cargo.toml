@@ -9,6 +9,7 @@ description = "为海豹核心（SealDice）提供的各种工具"
 opt-level = 'z' # Optimize for size
 lto = true
 codegen-units = 1
+panic = "abort"
 
 [dependencies]
 clap = { version = "4.2.7", features = ["derive"] }
