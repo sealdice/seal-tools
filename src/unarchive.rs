@@ -151,7 +151,7 @@ pub(crate) fn unarchive(
                 }
             }
             let mut outfile = fs::File::create(&dest_path)?;
-            println!("copying {:#?}", dest_path);
+            println!("copying  {:#?}", dest_path);
             io::copy(&mut file, &mut outfile)?;
         }
     } else {
@@ -179,7 +179,7 @@ pub(crate) fn unarchive(
                 }
             }
             let mut outfile = fs::File::create(&dest_path)?;
-            println!("copying {:#?}", dest_path);
+            println!("copying  {:#?}", dest_path);
             io::copy(&mut file, &mut outfile)?;
         }
     }

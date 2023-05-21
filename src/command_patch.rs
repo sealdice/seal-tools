@@ -141,7 +141,7 @@ pub(crate) fn patch_seal(
             );
         }
 
-        println!("从{}获取`{}`...", target_url, file_name);
+        println!("正在从 {} 获取 `{}`...", target_url, file_name);
         target_url = format!("{}/{}", target_url, file_name);
 
         let dest_path = path::Path::new(wd).join(file_name);
