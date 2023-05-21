@@ -3,8 +3,8 @@ use clearscreen::clear;
 use std::error::Error;
 use std::{fs, io, path};
 
-pub(crate) fn crau(dest: &str, wd: &str) -> Result<(), String> {
-    match check_archive_replacement(dest, wd) {
+pub(crate) fn crau(dest: &str, wd: &str, except: Option<Vec<String>>) -> Result<(), String> {
+    match check_archive_replacement(dest, wd, &except) {
         Ok(dup) => {
             if !dup.is_empty() {
                 println!(
@@ -20,7 +20,7 @@ pub(crate) fn crau(dest: &str, wd: &str) -> Result<(), String> {
                 }
             }
 
-            if let Err(e) = unarchive(dest, wd) {
+            if let Err(e) = unarchive(dest, wd, &except) {
                 exit_with(format!("解压文件时发生错误：{e}"), 1);
             }
         }
@@ -61,6 +61,7 @@ pub(crate) fn list_files(dir: &str, ext: &str) -> Result<Vec<String>, Box<dyn Er
 pub(crate) fn check_archive_replacement(
     src: &str,
     dest: &str,
+    except: &Option<Vec<String>>,
 ) -> Result<Vec<String>, Box<dyn Error>> {
     let mut duplicates = vec![];
 
@@ -79,6 +80,13 @@ pub(crate) fn check_archive_replacement(
                 "警告-操作已停止：正在尝试访问的文件包含不安全的目录，请检查文件来源是否合规",
             )?;
             let dest_path = path::Path::new(dest).join(file_name);
+
+            if let Some(paths) = except {
+                if compare_path(&paths, &dest_path) {
+                    continue;
+                }
+            }
+
             if dest_path.exists() {
                 duplicates.push(dest_path.to_string_lossy().into_owned());
             }
@@ -93,6 +101,12 @@ pub(crate) fn check_archive_replacement(
                 Err("警告-操作已停止：正在尝试访问的文件包含不安全的目录，请检查文件来源是否合规")?;
             }
             let dest_path = path::Path::new(dest).join(file_name);
+            if let Some(paths) = except {
+                if compare_path(&paths, &dest_path) {
+                    continue;
+                }
+            }
+
             if dest_path.exists() {
                 duplicates.push(dest_path.to_string_lossy().into_owned());
             }
@@ -102,7 +116,11 @@ pub(crate) fn check_archive_replacement(
     Ok(duplicates)
 }
 
-pub(crate) fn unarchive(src: &str, dest: &str) -> Result<(), Box<dyn Error>> {
+pub(crate) fn unarchive(
+    src: &str,
+    dest: &str,
+    except: &Option<Vec<String>>,
+) -> Result<(), Box<dyn Error>> {
     let file = fs::File::open(src)?;
     let src_ext = path::Path::new(src)
         .extension()
@@ -118,9 +136,17 @@ pub(crate) fn unarchive(src: &str, dest: &str) -> Result<(), Box<dyn Error>> {
                 "警告-操作已停止：正在尝试访问的文件包含不安全的目录，请检查文件来源是否合规",
             )?;
             let dest_path = path::Path::new(dest).join(file_name);
+
+            if let Some(paths) = except {
+                if compare_path(&paths, &dest_path) {
+                    println!("skipping {:#?}", dest_path);
+                    continue;
+                }
+            }
+
             if let Some(parent) = dest_path.parent() {
                 if !parent.exists() {
-                    println!("creatring {:#?}", parent);
+                    println!("creating {:#?}", parent);
                     fs::create_dir_all(parent)?;
                 }
             }
@@ -139,9 +165,16 @@ pub(crate) fn unarchive(src: &str, dest: &str) -> Result<(), Box<dyn Error>> {
             }
             let dest_path = path::Path::new(dest).join(file_name);
 
+            if let Some(paths) = except {
+                if compare_path(&paths, &dest_path) {
+                    println!("skipping {:#?}", dest_path);
+                    continue;
+                }
+            }
+
             if let Some(parent) = dest_path.parent() {
                 if !parent.exists() {
-                    println!("creatring {:#?}", parent);
+                    println!("creating {:#?}", parent);
                     fs::create_dir_all(parent)?;
                 }
             }
@@ -151,7 +184,7 @@ pub(crate) fn unarchive(src: &str, dest: &str) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    _ = clear();
+    //_ = clear();
     Ok(())
 }
 
@@ -162,4 +195,16 @@ fn is_path_safe(components: path::Components) -> bool {
         .collect();
 
     !normals.is_empty()
+}
+
+fn compare_path(this: &Vec<String>, that: &path::Path) -> bool {
+    let mut skip_this = false;
+    for path in this {
+        let p = path::Path::new(path);
+        if that == p {
+            skip_this = true;
+        }
+    }
+
+    skip_this
 }

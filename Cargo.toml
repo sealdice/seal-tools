@@ -1,6 +1,6 @@
 [package]
 name = "seal-tools"
-version = "0.2.0"
+version = "0.2.1-dev"
 edition = "2021"
 authors = ["檀轶步棋"]
 description = "为海豹核心（SealDice）提供的各种工具"

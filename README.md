@@ -31,3 +31,6 @@ curl = { version = "0.4.44", default-features = false, features = ["rustls"] }
 
 ## 开发指南
 文档会在后续版本完善。您现在可以在 `src/cli.rs` 查看所有命令和参数的定义，或对编译后的程序运行 `./seal-tools --help`。
+
+## 特别感谢
+[熊砾](https://github.com/Lightinglight)：进行了大量的测试

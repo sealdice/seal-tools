@@ -16,9 +16,9 @@ pub(crate) fn restore_with_gui(wd: &str) -> Result<(), String> {
         0 => exit_with("", 0),
         1 => {
             let mut backup_dir = wd;
-            let bdir = path::Path::new(wd).join("backups");
-            if bdir.exists() {
-                backup_dir = bdir.to_str().ok_or("无法读取备份文件夹")?;
+            let try_backup_dir = path::Path::new(wd).join("backups");
+            if try_backup_dir.exists() {
+                backup_dir = try_backup_dir.to_str().ok_or("无法读取备份文件夹")?;
             }
 
             return match list_files(backup_dir, "zip") {
@@ -49,7 +49,7 @@ pub(crate) fn restore_with_gui(wd: &str) -> Result<(), String> {
                     let dir = path::Path::new(backup_dir).join(files[choice - 1].clone());
                     let dir_str = dir.to_str().ok_or("无法导航至备份文件")?;
 
-                    restore_backup(wd, Some(String::from(dir_str)))
+                    restore_backup(wd, Some(String::from(dir_str)), None)
                 }
                 Err(e) => Err(format!("获取文件列表时发生错误：{e}")),
             };
@@ -60,14 +60,18 @@ pub(crate) fn restore_with_gui(wd: &str) -> Result<(), String> {
             if let Err(e) = io::stdin().read_line(&mut input) {
                 return Err(format!("意外错误：{e}"));
             }
-            return restore_backup(wd, Some(String::from(input.trim())));
+            return restore_backup(wd, Some(String::from(input.trim())), None);
         }
         _ => return Err(String::from("无效选择")),
     }
     Ok(())
 }
 
-pub(crate) fn restore_backup(wd: &str, backup: Option<String>) -> Result<(), String> {
+pub(crate) fn restore_backup(
+    wd: &str,
+    backup: Option<String>,
+    except: Option<Vec<String>>,
+) -> Result<(), String> {
     let dest = backup.unwrap();
-    crau(&dest, wd)
+    crau(&dest, wd, except)
 }

@@ -20,6 +20,9 @@ pub(crate) enum Commands {
         /// Specify a backup archive. Mandatory if run without gui
         #[arg(short, long, value_name = "BACKUP_PATH")]
         backup: Option<String>,
+        /// Specify paths to be skipped
+        #[arg(short, long, value_name = "PATH1, PATH2", value_parser, num_args = 1.., value_delimiter = ',')]
+        except: Option<Vec<String>>,
     },
     /// Patch up SealDice
     Patch {
@@ -32,5 +35,8 @@ pub(crate) enum Commands {
         /// Cancel auto-installation after download. Only works when `-d` exists
         #[arg(short, long)]
         noinstall: bool,
+        /// Specify paths to be skipped
+        #[arg(short, long, value_name = "PATHS1, PATH2", value_parser, num_args = 1.., value_delimiter = ',')]
+        except: Option<Vec<String>>,
     },
 }

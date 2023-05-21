@@ -2,12 +2,12 @@ use crate::unarchive::{crau, list_files};
 use crate::{exit_with, PACKAGE_EXT};
 use clearscreen::clear;
 use curl::easy;
+use curl::easy::{Handler, WriteError};
 use serde::Deserialize;
 use std::error::Error;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::{env, fs, io, path};
-use curl::easy::{Handler, WriteError};
 
 #[derive(Deserialize)]
 struct VersionInfo {
@@ -64,7 +64,7 @@ pub(crate) fn patch_with_gui(wd: &str) -> Result<(), String> {
                         return Err(String::from("无效选择"));
                     }
 
-                    patch_seal(wd, Some(files[choice - 1].clone()), false, false)
+                    patch_seal(wd, Some(files[choice - 1].clone()), false, false, None)
                 }
                 Err(e) => Err(format!("获取文件列表时发生错误：{e}")),
             };
@@ -75,11 +75,11 @@ pub(crate) fn patch_with_gui(wd: &str) -> Result<(), String> {
             if let Err(e) = io::stdin().read_line(&mut input) {
                 return Err(format!("意外错误：{e}"));
             }
-            return patch_seal(wd, Some(String::from(input.trim())), false, false);
+            return patch_seal(wd, Some(String::from(input.trim())), false, false, None);
         }
         3 => {
             _ = clear();
-            return patch_seal(wd, None, true, false);
+            return patch_seal(wd, None, true, false, None);
         }
         _ => return Err(String::from("无效选择")),
     }
@@ -92,6 +92,7 @@ pub(crate) fn patch_seal(
     package: Option<String>,
     download: bool,
     noinstall: bool,
+    except: Option<Vec<String>>,
 ) -> Result<(), String> {
     let mut dest = String::new();
 
@@ -199,5 +200,5 @@ pub(crate) fn patch_seal(
         }
     }
 
-    crau(&dest, wd)
+    crau(&dest, wd, except)
 }

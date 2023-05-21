@@ -60,12 +60,18 @@ fn main() {
         }
         let choice: i32 = choice.trim().parse().unwrap_or(-1);
         match choice {
-            1 => cli.command = Some(Commands::Restore { backup: None }),
+            1 => {
+                cli.command = Some(Commands::Restore {
+                    backup: None,
+                    except: None,
+                })
+            }
             2 => {
                 cli.command = Some(Commands::Patch {
                     package: None,
                     download: false,
                     noinstall: false,
+                    except: None,
                 })
             }
             114514 => {
@@ -80,11 +86,11 @@ fn main() {
     _ = clear();
 
     match cli.command.unwrap() {
-        Commands::Restore { backup } => {
+        Commands::Restore { backup, except } => {
             if let Err(e) = if backup.is_none() {
                 restore_with_gui(&cli.dir)
             } else {
-                restore_backup(&cli.dir, backup)
+                restore_backup(&cli.dir, backup, except)
             } {
                 exit_with(e, 1);
             } else {
@@ -95,11 +101,12 @@ fn main() {
             package,
             download,
             noinstall,
+            except,
         } => {
             if let Err(e) = if package.is_none() && !download && !noinstall {
                 patch_with_gui(&cli.dir)
             } else {
-                patch_seal(&cli.dir, package, download, noinstall)
+                patch_seal(&cli.dir, package, download, noinstall, except)
             } {
                 exit_with(e, 1);
             } else {
