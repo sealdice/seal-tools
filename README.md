@@ -24,11 +24,6 @@
   aarch64-linux-gnu-strip ./target/aarch64-unknown-linux-gnu/release/seal-tools
   ```
 
-此外，为其他系统编译通常涉及到 OpenSSL 不兼容的问题，必须启用 `rustls`：
-```toml
-curl = { version = "0.4.44", default-features = false, features = ["rustls"] }
-```
-
 ## 开发指南
 文档会在后续版本完善。您现在可以在 `src/cli.rs` 查看所有命令和参数的定义。以下是内置的帮助：
 
@@ -40,12 +35,6 @@ Commands:
   restore  Restore backup
   patch    Patch up SealDice
   help     Print this message or the help of the given subcommand(s)
-
-Options:
-  -w <WORKING_DIRECTORY>      The program's working directory [default: ./]
-  -n, --nogui                 Run without GUI
-  -h, --help                  Print help
-  -V, --version               Print version
 ```
 
 ### `./seal-tools restore --help`
@@ -53,9 +42,8 @@ Options:
 Usage: seal-tools restore [OPTIONS]
 
 Options:
-  -b, --backup <BACKUP_PATH>      Specify a backup archive. Mandatory if run without gui
-  -e, --except <PATH1, PATH2>...  Specify paths to be skipped
-  -h, --help                      Print help
+  -f, --file <PATH>     Specify a backup archive
+  -x                    Specify if to delete the old `data/default` folder after restoring
 ```
 
 ### `./seal-tools patch --help`
@@ -63,11 +51,8 @@ Options:
 Usage: seal-tools patch [OPTIONS]
 
 Options:
-  -p, --package <UPDATE_PATH>      Specify an update package. Mandatory if run without gui nor `-d`
-  -d, --download                   Download the latest update package
-  -n, --noinstall                  Cancel auto-installation after download. Only works when `-d` exists
-  -e, --except <PATHS1, PATH2>...  Specify paths to be skipped
-  -h, --help                       Print help
+  -f, --file <PATH>     Specify a backup archive
+  -r, --replace         Specify if to replace the current `data/default/extra/` folder with the one in backup file
 ```
 
 ## 特别感谢
